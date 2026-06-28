@@ -15,10 +15,30 @@ const translations: Record<SupportedLanguage, Record<string, string>> = {
 
 let currentLang: SupportedLanguage = "en";
 
+// Language change listeners for reactive UI updates
+let listeners: Set<() => void> = new Set();
+
+/**
+ * Subscribe to language changes. Returns an unsubscribe function.
+ */
+export function subscribeToLanguageChanges(callback: () => void): () => void {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+/**
+ * Get the current active language.
+ */
 export function getCurrentLanguage(): SupportedLanguage {
   return currentLang;
 }
 
+/**
+ * Translate a key to the current language.
+ * Falls back to the key itself if no translation is found.
+ */
 export function t(key: string): string {
   const langDict = translations[currentLang];
   if (langDict && langDict[key]) {
@@ -35,6 +55,8 @@ export function applyPersistedLanguage(_lang?: string): void {
 
 export async function changeLanguage(lang: SupportedLanguage): Promise<void> {
   currentLang = lang;
+  // Notify all subscribers (e.g., React hooks) to trigger re-render
+  listeners.forEach((l) => l());
   try {
     if (typeof window !== "undefined" && window.electronAPI?.saveAppearanceSettings) {
       await window.electronAPI.saveAppearanceSettings({ language: lang });
